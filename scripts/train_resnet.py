@@ -58,3 +58,33 @@ def train_model(model, train_data_loader, val_data_loader, loss_fn, optimizer, l
         print("Training complete!")
         return model
 
+def test_model(model, data_loader, device="cuda"):
+    """
+    Evaluate model accuracy
+
+    Based on PA3 2.2 (test_model)
+    """
+
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for batch_data in data_loader:
+            images, labels = batch_dataimages = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    acc = 100 * correct / total
+    return acc
+
+def set_up_loss_optimizer_lr_scheduler(model, learning_rate, momentum, lr_step_size, lr_gamma):
+    """
+    Based on PA3 2.4
+    """
+    loss_fn = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, lr_step_size, lr_gamma)
+    return loss_fn, optimizer, lr_scheduler
