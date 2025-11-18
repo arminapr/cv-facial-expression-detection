@@ -3,6 +3,9 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 
 def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1):
+    if data_dir is None:
+        data_dir = os.path.join(os.path.dirname(__file__), "..", "datasets", "fer2013")
+        data_dir = os.path.abspath(data_dir)
     transform = transforms.Compose([
         transforms.Grayscale(num_output_channels=3), # Data set has grayscale images and we need RGB
         transforms.Resize((224,224)), # Resnet input size is (224,224)
