@@ -5,6 +5,8 @@ import torch
 from train_resnet import train_model, test_model, set_up_loss_optimizer_lr_scheduler
 from resnet import get_resnet
 from data_loader import get_dataloaders
+import pickle
+from datetime import datetime
 
 if __name__ == "__main__":
     # === Setup ===
@@ -38,7 +40,7 @@ if __name__ == "__main__":
     )
 
     # === Train and validate ===
-    model = train_model(
+    model, metrics = train_model(
         model, train_loader, val_loader,
         loss_fn, optimizer, lr_scheduler,
         num_epochs, print_freq=50, device=device
@@ -51,3 +53,8 @@ if __name__ == "__main__":
     # === Save trained model ===
     torch.save(model.state_dict(), "resnet18_fer2013.pth")
     print("Model saved as resnet18_fer2013.pth")
+
+    # save the training and validation losses and accuracies
+    metrics_save_path = f'./training_metrics/{(datetime.now())}.pkl'
+    with open(metrics_save_path, 'wb') as f:
+        pickle.dump(metrics, f)
