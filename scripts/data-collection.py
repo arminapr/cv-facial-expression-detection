@@ -17,3 +17,4 @@ for item in os.listdir(path):
         shutil.copytree(s, d, dirs_exist_ok=True)
     else:
         shutil.copy2(s, d)
+        print("Dataset saved to: ", destination_dir)
