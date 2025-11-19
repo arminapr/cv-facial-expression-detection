@@ -2,15 +2,15 @@ import pickle
 import matplotlib.pyplot as plt
 
 # retrieve the training metrics
-metrics_save_path = 'training_metrics.pkl'
+metrics_save_path = 'training_metrics/20251119_092924.pkl'
 with open(metrics_save_path, 'rb') as f:
     metrics = pickle.load(f)
 
 # retrieve the training/validation losses and accuracies
-train_losses = metrics['train_losses']
-train_accuracies = metrics['train_accuracies']
-val_losses = metrics['val_losses']
-val_accuracies = metrics['val_accuracies']
+train_losses = metrics['train_loss']
+train_accuracies = metrics['train_acc']
+val_losses = metrics['val_loss']
+val_accuracies = metrics['val_acc']
 
 # plot for losses
 plt.figure(figsize=(10, 5))

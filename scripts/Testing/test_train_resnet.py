@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     # === Hyperparameters ===
     num_epochs = 3   # (low for testing, increase for final run)
-    batch_size = 64
+    batch_size = 1 # (not used here, but set in data_loader)
     learning_rate = 0.001
     momentum = 0.9
     lr_step_size = 2
@@ -47,14 +47,21 @@ if __name__ == "__main__":
     )
 
     # === Evaluate on test set ===
-    test_acc = test_model(model, test_loader, device=device)
-    print(f"Final Test Accuracy: {test_acc:.2f}%")
+    # test_model now returns (loss, acc) — unpack both for clarity
+    test_loss, test_acc = test_model(model, test_loader, loss_fn=loss_fn, device=device)
+    print(f"Final Test Loss: {test_loss:.4f} Final Test Accuracy: {test_acc:.2f}%")
 
     # === Save trained model ===
     torch.save(model.state_dict(), "resnet18_fer2013.pth")
     print("Model saved as resnet18_fer2013.pth")
 
     # save the training and validation losses and accuracies
-    metrics_save_path = f'./training_metrics/{(datetime.now())}.pkl'
+    metrics_dir = './training_metrics'
+    os.makedirs(metrics_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_filename = f'{timestamp}.pkl'
+    
+    metrics_save_path = os.path.join(metrics_dir, base_filename)
     with open(metrics_save_path, 'wb') as f:
         pickle.dump(metrics, f)
+    print(f"Saved training metrics to {metrics_save_path}")
