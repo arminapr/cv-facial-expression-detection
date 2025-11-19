@@ -27,7 +27,7 @@ if __name__ == "__main__":
     print("Loaded pretrained ResNet18 model")
 
     # === Hyperparameters ===
-    num_epochs = 3   # (low for testing, increase for final run)
+    num_epochs = 7   # (low for testing, increase for final run)
     batch_size = 1 # (not used here, but set in data_loader)
     learning_rate = 0.001
     momentum = 0.9

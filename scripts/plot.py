@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # retrieve the training metrics
-metrics_save_path = 'training_metrics/20251119_105836.pkl'
+metrics_save_path = 'training_metrics/ResNet15_5epoch.pkl'
 with open(metrics_save_path, 'rb') as f:
     metrics = pickle.load(f)
     
