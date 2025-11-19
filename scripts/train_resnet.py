@@ -59,9 +59,6 @@ def train_model(model, train_data_loader, val_data_loader, loss_fn, optimizer, l
             running_total += labels.size(0)
             running_correct += (predicted == labels).sum().item()
             
-            training_loss.append(loss.item())
-            training_acc.append(100 * (predicted == labels).sum().item() / labels.size(0))
-
             if i % print_freq == 0 and running_total > 0:
                 avg_loss = running_loss / running_total
                 avg_acc = running_correct / running_total * 100
