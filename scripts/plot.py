@@ -1,10 +1,13 @@
 import pickle
 import matplotlib.pyplot as plt
+import os
 
 # retrieve the training metrics
-metrics_save_path = 'training_metrics/20251119_092924.pkl'
+metrics_save_path = 'training_metrics/20251119_105836.pkl'
 with open(metrics_save_path, 'rb') as f:
     metrics = pickle.load(f)
+    
+file_name = metrics_save_path.split('/')[-1]
 
 # retrieve the training/validation losses and accuracies
 train_losses = metrics['train_loss']
@@ -20,7 +23,14 @@ plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Training and Validation Loss')
 plt.legend()
-plt.show()
+# plt.show()
+
+# save the training and validation losses and accuracies
+plot_dir = './plots'
+os.makedirs(plot_dir, exist_ok=True)
+
+# save the plot in plots directory
+plt.savefig(f'{plot_dir}/{file_name}_training_validation_loss.png')
 
 # plot for accuracies
 plt.figure(figsize=(10, 5))
@@ -30,4 +40,7 @@ plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
 plt.title('Training and Validation Accuracy')
 plt.legend()
-plt.show()
+# plt.show()
+
+# save the plots
+plt.savefig(f'{plot_dir}/{file_name}_training_validation_accuracy.png')
