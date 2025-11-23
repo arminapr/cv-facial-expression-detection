@@ -9,7 +9,7 @@ from data_loader import get_dataloaders
 import pickle
 from datetime import datetime
 
-def set_up_training(model, learning_rate=0.001, weight_decay=0.0001):
+def set_up_training(model, learning_rate=0.001, weight_decay=0.0001, num_epochs=10, steps_per_epoch=None):
     """
     Optimized setup for efficient CNN
     """
@@ -19,11 +19,16 @@ def set_up_training(model, learning_rate=0.001, weight_decay=0.0001):
         lr=learning_rate, 
         weight_decay=weight_decay,
     )
+
+    if steps_per_epoch:
+        T_max = num_epochs * steps_per_epoch
+    else:
+        T_max = num_epochs
     
     # Cosine annealing for smooth learning rate decay
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, 
-        T_max=10 # change with number of epochs
+        T_max # change with number of epochs
     )
     
     # Standard cross entropy (you could also use label smoothing here)
@@ -42,6 +47,8 @@ if __name__ == "__main__":
     else:
         device = "cpu"
     print(f"Using device: {device}")
+
+    model = model.to(device)
     
     # === Load data with proper configuration ===
     train_loader, val_loader, test_loader, num_classes = get_dataloaders(
@@ -61,10 +68,11 @@ if __name__ == "__main__":
     num_epochs = 10 
     learning_rate = 0.001
     weight_decay = 0.0001
+    steps_per_epoch = len(train_loader)
     
     # === Setup optimizer and scheduler ===
     loss_fn, optimizer, lr_scheduler = set_up_training(
-        model, learning_rate, weight_decay
+        model, learning_rate, weight_decay, num_epochs, steps_per_epoch
     )
     
     # === Train model ===
