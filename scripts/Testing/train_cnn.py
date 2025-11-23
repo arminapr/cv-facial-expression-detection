@@ -1,16 +1,15 @@
-# train_efficient_fer.py
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import torch
 import torch.nn as nn
-from train_resnet import train_model, test_model  # Reuse your training functions
+from train_resnet import train_model, test_model
 from cnn_model import get_efficient_fer_model
 from data_loader import get_dataloaders
 import pickle
 from datetime import datetime
 
-def set_up_training(model, learning_rate=1e-3, weight_decay=1e-4):
+def set_up_training(model, learning_rate=0.001, weight_decay=0.0001):
     """
     Optimized setup for efficient CNN
     """
@@ -19,15 +18,12 @@ def set_up_training(model, learning_rate=1e-3, weight_decay=1e-4):
         model.parameters(), 
         lr=learning_rate, 
         weight_decay=weight_decay,
-        betas=(0.9, 0.999)
     )
     
     # Cosine annealing for smooth learning rate decay
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, 
-        T_0=10,  # Restart every 10 epochs
-        T_mult=2,  # Double the restart period after each restart
-        eta_min=1e-6
+        T_max=10 # change with number of epochs
     )
     
     # Standard cross entropy (you could also use label smoothing here)
@@ -56,16 +52,15 @@ if __name__ == "__main__":
     )
     
     # === Create efficient model ===
-    # width_mult options: 0.5 (120K params), 0.75 (270K params), 1.0 (470K params)
     model = get_efficient_fer_model(
         num_classes=num_classes, 
         width_mult=0.75  # Good balance of size/performance
     )
     
     # === Training hyperparameters ===
-    num_epochs = 30  # More epochs since model trains faster
-    learning_rate = 1e-3
-    weight_decay = 1e-4
+    num_epochs = 10 
+    learning_rate = 0.001
+    weight_decay = 0.0001
     
     # === Setup optimizer and scheduler ===
     loss_fn, optimizer, lr_scheduler = set_up_training(
@@ -90,7 +85,7 @@ if __name__ == "__main__":
     print(f"{'='*50}")
     
     # === Save model ===
-    model_path = f"efficient_fer_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+    model_path = f"efficient_fer_{num_epochs}_{learning_rate}_{weight_decay}.pth"
     torch.save({
         'model_state_dict': model.state_dict(),
         'test_accuracy': test_acc,
