@@ -5,7 +5,7 @@ import torch
 
 # with help from Claude Opus 4.1, rewrote this function to include a more efficient version
 def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1, 
-                   model_type='efficient', augmentation=True):
+                   model_type='resnet', augmentation=True):
     """
     Get data loaders for FER2013 dataset.
     

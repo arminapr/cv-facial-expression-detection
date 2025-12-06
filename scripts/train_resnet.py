@@ -40,8 +40,17 @@ def train_model(model, train_data_loader, val_data_loader, loss_fn, optimizer, l
             labels = labels.to(device).long()
 
             # Forward pass
-            outputs = model(images)
-            loss = loss_fn(outputs, labels)
+            # outputs = model(images)
+            # loss = loss_fn(outputs, labels)
+
+            # GPT said to use this in order to improve training speed
+            if device in ["cuda", "mps"]:
+                with torch.autocast(device_type=device, dtype=torch.float16):
+                    outputs = model(images)
+                    loss = loss_fn(outputs, labels)
+            else:
+                outputs = model(images)
+                loss = loss_fn(outputs, labels)
 
             # Backward pass
             optimizer.zero_grad()
