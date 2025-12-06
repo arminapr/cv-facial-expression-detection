@@ -8,7 +8,7 @@ def get_resnet(num_classes=7, pretrained=True, freeze_layers=False):
 
     This is similar to PA3 2.8, training using ResNet weights
     """
-    model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
+    model = models.resnet34(weights=models.ResNet34_Weights.IMAGENET1K_V1 if pretrained else None)
 
     # Replace fc to match num_classes = 7
     in_features = model.fc.in_features

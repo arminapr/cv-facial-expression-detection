@@ -106,7 +106,7 @@ if __name__ == "__main__":
     metrics_dir = './training_metrics'
     os.makedirs(metrics_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    metrics_path = os.path.join(metrics_dir, f'efficient_fer_{timestamp}.pkl')
+    metrics_path = os.path.join(metrics_dir, f'efficient_fer_{num_epochs}_{learning_rate}.pkl')
     
     with open(metrics_path, 'wb') as f:
         pickle.dump({

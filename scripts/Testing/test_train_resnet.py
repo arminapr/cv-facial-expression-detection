@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     # === Load model ===
     model = get_resnet(num_classes=num_classes, pretrained=True, freeze_layers=False)
-    print("Loaded pretrained ResNet18 model")
+    print("Loaded pretrained ResNet34 model")
 
     # === Hyperparameters ===
     num_epochs = 7   # (low for testing, increase for final run)
@@ -52,14 +52,14 @@ if __name__ == "__main__":
     print(f"Final Test Loss: {test_loss:.4f} Final Test Accuracy: {test_acc:.2f}%")
 
     # === Save trained model ===
-    torch.save(model.state_dict(), "resnet18_fer2013.pth")
-    print("Model saved as resnet18_fer2013.pth")
+    torch.save(model.state_dict(), f"resnet34_fer2013_{num_epochs}_{learning_rate}.pth")
+    print("Model saved as resnet34_fer2013.pth")
 
     # save the training and validation losses and accuracies
     metrics_dir = './training_metrics'
     os.makedirs(metrics_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_filename = f'{timestamp}.pkl'
+    base_filename = f'resnet34_{num_epochs}_{learning_rate}.pkl'
     
     metrics_save_path = os.path.join(metrics_dir, base_filename)
     with open(metrics_save_path, 'wb') as f:

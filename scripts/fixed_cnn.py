@@ -197,11 +197,11 @@ if __name__ == "__main__":
     use_adamw = True
     use_amp = True
 
-    # --- Device ---
+    # device
     device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # --- Data ---
+    # data
     train_loader, val_loader, test_loader, num_classes = get_dataloaders(
         batch_size=batch_size,
         val_split=0.1,
@@ -209,14 +209,14 @@ if __name__ == "__main__":
         augmentation=True
     )
 
-    # --- Model ---
+    # use efficient fer model
     model = get_efficient_fer_model(num_classes=num_classes, width_mult=width_mult)
 
-    # --- Setup optimizer / scheduler ---
+    # optimizer/scheduler
     scheduler_cfg = {'type': 'cosine', 'T_max': num_epochs}
     loss_fn, optimizer, lr_scheduler = set_up_training(model, learning_rate, weight_decay, num_epochs, scheduler_cfg, use_adamw=use_adamw)
 
-    # --- Train ---
+    # training the model
     model, metrics = train_model(
         model, train_loader, val_loader,
         loss_fn, optimizer, lr_scheduler,
@@ -227,11 +227,11 @@ if __name__ == "__main__":
         save_dir="./checkpoints"
     )
 
-    # --- Test best checkpoint (optional) ---
+    # test final performance
     final_loss, final_acc = test_model(model, test_loader, loss_fn=loss_fn, device=device)
     print(f"Final test loss: {final_loss:.4f}, test acc: {final_acc:.2f}%")
 
-    # --- Save training metrics ---
+    # save training metrics
     os.makedirs("training_metrics", exist_ok=True)
     with open(os.path.join("training_metrics", f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"), "wb") as f:
         pickle.dump(metrics, f)
