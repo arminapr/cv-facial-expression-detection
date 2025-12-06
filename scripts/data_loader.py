@@ -1,17 +1,63 @@
 import os
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 import torch
+import numpy as np
+from collections import Counter
 
-# with help from Claude Opus 4.1, rewrote this function to include a more efficient version
+'''
+the goal here is to balance the dataset so that each cateogru has the same number of photos
+'''
+def balance_dataset(dataset):    
+    # Get all labels
+    targets = np.array([dataset.targets[i] for i in range(len(dataset))])
+    
+    # find the minimum class count
+    class_counts = Counter(targets)
+    min_count = min(class_counts.values())
+    
+    # find the minimum sample
+    balanced_indices = []
+    
+    for class_idx in range(len(dataset.classes)):
+        class_indices = np.where(targets == class_idx)[0]
+        sampled_indices = np.random.choice(class_indices, size=min_count, replace=False)
+        balanced_indices.extend(sampled_indices)
+    
+    # take a random shuffle of the indices
+    np.random.shuffle(balanced_indices)
+    return Subset(dataset, balanced_indices)
+
+# using this to remove any data labels we won't use
+# help 
+def remove_class(dataset, classname):
+    orig_classes = list(dataset.classes)
+    # new classes and mapping without the removed class
+    new_classes = [c for c in orig_classes if c != classname]
+    new_class_to_idx = {c: i for i, c in enumerate(new_classes)}
+    # rebuild samples/targets with remapped labels
+    new_samples = []
+    for path, label in dataset.samples:
+        orig_class = orig_classes[label]
+        if orig_class == classname:
+            continue
+        new_label = new_class_to_idx[orig_class]
+        new_samples.append((path, new_label))
+    dataset.samples = new_samples
+    dataset.imgs = new_samples
+    dataset.targets = [s[1] for s in new_samples]
+    dataset.classes = new_classes
+    dataset.class_to_idx = new_class_to_idx
+            
 def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1, 
-                   model_type='resnet', augmentation=True):
+                   model_type='resnet', augmentation=True, balance_classes=True):
     """
     Get data loaders for FER2013 dataset.
     
     Args:
         model_type: 'efficient' for our CNN, 'resnet' for ResNet
         augmentation: Whether to use data augmentation for training
+        balance_classes: Whether to undersample to balance classes
     """
     if data_dir is None:
         data_dir = os.path.join(os.path.dirname(__file__), "..", "datasets", "fer2013")
@@ -60,30 +106,44 @@ def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1,
     # Load datasets
     training_data = datasets.ImageFolder(os.path.join(data_dir, "train"), transform=transform_train)
     testing_data = datasets.ImageFolder(os.path.join(data_dir, "test"), transform=transform_test)
-    # training data validation
-    validation_size = int(len(training_data) * val_split)
-    training_size = len(training_data) - validation_size
+    #  disgust has much less samples so we will remove when balancing
+    if balance_classes:
+        remove_class(training_data, "disgust")
+        remove_class(testing_data, "disgust")
+    if balance_classes:
+        training_data_balanced = balance_dataset(training_data)
+        total_train_samples = len(training_data_balanced)
+    else:
+        training_data_balanced = training_data
+        total_train_samples = len(training_data)
     
-    # Use a fixed seed for reproducible splits
+    # training data validation split
+    validation_size = int(total_train_samples * val_split)
+    training_size = total_train_samples - validation_size
+    
     generator = torch.Generator().manual_seed(42)
-    training_data, validation_data = random_split(
-        training_data, 
+    training_data_final, validation_data = random_split(
+        training_data_balanced, 
         [training_size, validation_size],
         generator=generator
     )
     
-    # For validation data, we need to override the transform to remove augmentation
+    # For validation data, override transform to remove augmentation
     if model_type != 'resnet':
-        validation_data.dataset.transform = transform_test
+        # Need to access the root dataset through the Subset
+        if balance_classes:
+            training_data_balanced.dataset.transform = transform_test
+        else:
+            validation_data.dataset.transform = transform_test
     
-    # Create data loaders with optimized settings
+    # Create data loaders
     training_loader = DataLoader(
-        training_data, 
+        training_data_final, 
         batch_size=batch_size, 
         shuffle=True, 
-        num_workers=4,  # Increase if you have more CPU cores
-        pin_memory=True,  # Faster GPU transfer
-        persistent_workers=True  # Keep workers alive between epochs
+        num_workers=4,
+        pin_memory=True,
+        persistent_workers=True
     )
     
     validation_loader = DataLoader(
