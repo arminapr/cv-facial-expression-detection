@@ -1,4 +1,3 @@
-# efficient_fer_model.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +6,7 @@ import torch.nn.functional as F
 class CustomVGG(nn.Module):
     def __init__(self, num_classes=7):
         super(CustomVGG, self).__init__()
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.features = nn.Sequential(
             # Conv Layer block 1
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
@@ -60,6 +60,7 @@ class CustomVGG(nn.Module):
         
     def forward(self, x):
         x = self.features(x)
+        x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
