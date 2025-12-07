@@ -49,13 +49,13 @@ def remove_class(dataset, classname):
     dataset.classes = new_classes
     dataset.class_to_idx = new_class_to_idx
             
-def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1, 
-                   model_type='resnet', augmentation=True, balance_classes=True):
+def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1, test_split=0.1, 
+                   model_type='efficient', augmentation=True, balance_classes=True):
     """
     Get data loaders for FER2013 dataset.
     
     Args:
-        model_type: 'efficient' for our CNN, 'resnet' for ResNet
+        model_type: 'efficient' for our CNN, 'resnet' for ResNet, 'vgg' for Custom VGG
         augmentation: Whether to use data augmentation for training
         balance_classes: Whether to undersample to balance classes
     """
@@ -71,6 +71,15 @@ def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1,
             transforms.ToTensor(),
             # Mean and std come from ImageNet dataset used to train ResNet
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        transform_test = transform_train
+        
+    elif model_type == 'vgg':
+        transform_train = transforms.Compose([
+            transforms.Grayscale(num_output_channels=1),
+            transforms.Resize((224, 224)), # vgg input is 224 x 224
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5])
         ])
         transform_test = transform_train
         
