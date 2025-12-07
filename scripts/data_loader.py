@@ -99,9 +99,9 @@ def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1, t
         else:
             transform_train = transforms.Compose([
                 transforms.Grayscale(num_output_channels=1),
-                transforms.Resize((48, 48)),
+                transforms.Resize((224, 224)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
+                # transforms.Normalize(mean=[0.5], std=[0.5])
             ])
         
         # Test/val without augmentation
