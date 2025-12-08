@@ -8,7 +8,7 @@ from resnet import get_resnet
 from data_loader import get_dataloaders
 import pickle
 from datetime import datetime
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     print(f"Final Test Loss: {test_loss:.4f} Final Test Accuracy: {test_acc:.2f}%")
 
 
-    # === Plots ===
+    # === Confusion Matrix Only ===
     def evaluate_full_metrics(model, test_loader, device="cpu", class_names=None, save_prefix="results"):
         model.eval()
         all_preds = []
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         all_preds = np.array(all_preds)
         all_labels = np.array(all_labels)
 
-        # ===== Confusion Matrix =====
+        # ===== Confusion Matrix Only =====
         cm = confusion_matrix(all_labels, all_preds)
         print("\nConfusion Matrix:")
         print(cm)
@@ -87,42 +87,16 @@ if __name__ == "__main__":
         plt.xlabel("Predicted")
         plt.ylabel("True")
         plt.colorbar()
+
+        if class_names:
+            plt.xticks(np.arange(len(class_names)), class_names, rotation=45)
+            plt.yticks(np.arange(len(class_names)), class_names)
+
+        plt.tight_layout()
         plt.savefig(f"{save_prefix}_confusion_matrix.png")
         plt.close()
 
-        # ===== Precision, Recall, F1 =====
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            all_labels, all_preds, average=None
-        )
-
-        print("\nPer-Class Metrics:")
-        for i in range(len(precision)):
-            print(f"Class {i}:  Precision={precision[i]:.3f}, Recall={recall[i]:.3f}, F1={f1[i]:.3f}")
-
-        # Save bar plots
-        x = np.arange(len(precision))
-        plt.figure(figsize=(10, 5))
-        plt.bar(x, precision)
-        plt.xticks(x, class_names, rotation=45)
-        plt.title("Precision per Class")
-        plt.savefig(f"{save_prefix}_precision.png")
-        plt.close()
-
-        plt.figure(figsize=(10, 5))
-        plt.bar(x, recall)
-        plt.xticks(x, class_names, rotation=45)
-        plt.title("Recall per Class")
-        plt.savefig(f"{save_prefix}_recall.png")
-        plt.close()
-
-        plt.figure(figsize=(10, 5))
-        plt.bar(x, f1)
-        plt.xticks(x, class_names, rotation=45)
-        plt.title("F1 Score per Class")
-        plt.savefig(f"{save_prefix}_f1.png")
-        plt.close()
-
-        return precision, recall, f1, cm
+        return cm
     
     class_names = test_loader.dataset.classes
 

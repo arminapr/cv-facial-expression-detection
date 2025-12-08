@@ -8,6 +8,9 @@ from cnn_model import get_efficient_fer_model
 from data_loader import get_dataloaders
 import pickle
 from datetime import datetime
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import numpy as np
 
 def set_up_training(model, learning_rate=0.001, weight_decay=0.0001, num_epochs=10, steps_per_epoch=None):
     """
@@ -48,7 +51,7 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using device: {device}")
 
-    model = model.to(device)
+    
     
     # === Load data with proper configuration ===
     train_loader, val_loader, test_loader, num_classes = get_dataloaders(
@@ -63,9 +66,11 @@ if __name__ == "__main__":
         num_classes=num_classes, 
         width_mult=0.75  # Good balance of size/performance
     )
+
+    model = model.to(device)
     
     # === Training hyperparameters ===
-    num_epochs = 10 
+    num_epochs = 50 
     learning_rate = 0.001
     weight_decay = 0.0001
     steps_per_epoch = len(train_loader)
@@ -91,6 +96,53 @@ if __name__ == "__main__":
     print(f"Final Test Loss: {test_loss:.4f}")
     print(f"Final Test Accuracy: {test_acc:.2f}%")
     print(f"{'='*50}")
+
+    def evaluate_full_metrics(model, test_loader, device="cpu", class_names=None, save_prefix="results"):
+        model.eval()
+        all_preds = []
+        all_labels = []
+
+        with torch.no_grad():
+            for images, labels in test_loader:
+                images = images.to(device)
+                labels = labels.to(device)
+
+                outputs = model(images)
+                _, predicted = torch.max(outputs, 1)
+
+                all_preds.extend(predicted.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+
+        all_preds = np.array(all_preds)
+        all_labels = np.array(all_labels)
+
+        # ===== Confusion Matrix =====
+        cm = confusion_matrix(all_labels, all_preds)
+        print("\nConfusion Matrix:")
+        print(cm)
+
+        # Plot confusion matrix
+        plt.figure(figsize=(8, 6))
+        plt.imshow(cm, cmap="Blues")
+        plt.title("Confusion Matrix")
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
+        plt.colorbar()
+
+        if class_names:
+            plt.xticks(np.arange(len(class_names)), class_names, rotation=45)
+            plt.yticks(np.arange(len(class_names)), class_names)
+
+        plt.tight_layout()
+        plt.savefig(f"{save_prefix}_confusion_matrix.png")
+        plt.close()
+
+        return cm
+
+    
+    class_names = test_loader.dataset.classes
+
+    evaluate_full_metrics(model, test_loader, device=device, class_names=class_names, save_prefix=f"results_{num_epochs}_{learning_rate}")
     
     # === Save model ===
     model_path = f"efficient_fer_{num_epochs}_{learning_rate}_{weight_decay}.pth"
