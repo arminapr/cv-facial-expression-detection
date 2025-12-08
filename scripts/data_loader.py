@@ -50,7 +50,7 @@ def remove_class(dataset, classname):
     dataset.class_to_idx = new_class_to_idx
             
 def get_dataloaders(data_dir="datasets/fer2013", batch_size=64, val_split=0.1, test_split=0.1, 
-                   model_type='efficient', augmentation=True, balance_classes=True):
+                   model_type='resnet', augmentation=True, balance_classes=True):
     """
     Get data loaders for FER2013 dataset.
     

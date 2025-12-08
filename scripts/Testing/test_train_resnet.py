@@ -24,10 +24,10 @@ if __name__ == "__main__":
 
     # === Load model ===
     model = get_resnet(num_classes=num_classes, pretrained=True, freeze_layers=False)
-    print("Loaded pretrained ResNet34 model")
+    print("Loaded pretrained ResNet50 model")
 
     # === Hyperparameters ===
-    num_epochs = 50   # (low for testing, increase for final run)
+    num_epochs = 10   # (low for testing, increase for final run)
     batch_size = 1 # (not used here, but set in data_loader)
     learning_rate = 0.001
     momentum = 0.9
