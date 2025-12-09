@@ -1,3 +1,4 @@
+# GPT used for plotting/graphs
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -7,6 +8,9 @@ from resnet import get_resnet
 from data_loader import get_dataloaders
 import pickle
 from datetime import datetime
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import numpy as np
 
 if __name__ == "__main__":
     # === Setup ===
@@ -24,10 +28,10 @@ if __name__ == "__main__":
 
     # === Load model ===
     model = get_resnet(num_classes=num_classes, pretrained=True, freeze_layers=False)
-    print("Loaded pretrained ResNet34 model")
+    print("Loaded pretrained model")
 
     # === Hyperparameters ===
-    num_epochs = 50   # (low for testing, increase for final run)
+    num_epochs = 10   # (low for testing, increase for final run)
     batch_size = 1 # (not used here, but set in data_loader)
     learning_rate = 0.001
     momentum = 0.9
@@ -50,6 +54,53 @@ if __name__ == "__main__":
     # test_model now returns (loss, acc) — unpack both for clarity
     test_loss, test_acc = test_model(model, test_loader, loss_fn=loss_fn, device=device)
     print(f"Final Test Loss: {test_loss:.4f} Final Test Accuracy: {test_acc:.2f}%")
+
+
+    # === Confusion Matrix Only ===
+    def evaluate_full_metrics(model, test_loader, device="cpu", class_names=None, save_prefix="results"):
+        model.eval()
+        all_preds = []
+        all_labels = []
+
+        with torch.no_grad():
+            for images, labels in test_loader:
+                images = images.to(device)
+                labels = labels.to(device)
+
+                outputs = model(images)
+                _, predicted = torch.max(outputs, 1)
+
+                all_preds.extend(predicted.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+
+        all_preds = np.array(all_preds)
+        all_labels = np.array(all_labels)
+
+        # ===== Confusion Matrix Only =====
+        cm = confusion_matrix(all_labels, all_preds)
+        print("\nConfusion Matrix:")
+        print(cm)
+
+        plt.figure(figsize=(8, 6))
+        plt.imshow(cm, cmap="Blues")
+        plt.title("Confusion Matrix")
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
+        plt.colorbar()
+
+        if class_names:
+            plt.xticks(np.arange(len(class_names)), class_names, rotation=45)
+            plt.yticks(np.arange(len(class_names)), class_names)
+
+        plt.tight_layout()
+        plt.savefig(f"{save_prefix}_confusion_matrix.png")
+        plt.close()
+
+        return cm
+    
+    class_names = test_loader.dataset.classes
+
+    evaluate_full_metrics(model, test_loader, device=device, class_names=class_names, save_prefix=f"results_{num_epochs}_{learning_rate}")
 
     # === Save trained model ===
     torch.save(model.state_dict(), f"resnet34_fer2013_{num_epochs}_{learning_rate}.pth")
