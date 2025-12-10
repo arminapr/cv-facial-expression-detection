@@ -167,6 +167,7 @@ def main():
     print(f"Best Validation Accuracy: {best_val_acc:.2f}%")
     print("="*50)
     np.savez("../checkpoints/training_history.npz", **history)
+
     
     return history
 
