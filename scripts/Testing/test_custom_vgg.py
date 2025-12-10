@@ -55,4 +55,6 @@ with torch.no_grad():
         correct += (predicted == labels).sum().item()
         
 print(f"Test Accuracy: {100 * correct / total:.2f}%")
-
+model_path = "custom_vgg_model.pth"
+torch.save(model.state_dict(), model_path)
+print(f"Model saved to {model_path}")
