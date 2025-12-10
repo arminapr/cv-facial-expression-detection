@@ -35,8 +35,8 @@ if __name__ == "__main__":
     batch_size = 1 # (not used here, but set in data_loader)
     learning_rate = 0.001
     momentum = 0.9
-    lr_step_size = 2
-    lr_gamma = 0.2
+    lr_step_size = 5
+    lr_gamma = 0.1
 
     # === Loss, optimizer, and LR scheduler ===
     loss_fn, optimizer, lr_scheduler = set_up_loss_optimizer_lr_scheduler(
@@ -97,7 +97,7 @@ if __name__ == "__main__":
             plt.yticks(np.arange(len(class_names)), class_names)
 
         plt.tight_layout()
-        plt.savefig(f"{save_prefix}_confusion_matrix.png")
+        plt.savefig(f"{save_prefix}_confusion_matrix_{datetime.now()}.png")
         plt.close()
 
         # ===== Average Precision (AP) per class =====

@@ -21,7 +21,7 @@ def main():
 
     batch_size = 32
     learning_rate = 1e-4
-    num_epochs = 10
+    num_epochs = 7
     num_classes = 7
     weight_decay = 0.01  # L2 regularization
     
