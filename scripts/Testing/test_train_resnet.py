@@ -8,7 +8,7 @@ from resnet import get_resnet
 from data_loader import get_dataloaders
 import pickle
 from datetime import datetime
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, average_precision_score
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -61,6 +61,7 @@ if __name__ == "__main__":
         model.eval()
         all_preds = []
         all_labels = []
+        all_probs = []
 
         with torch.no_grad():
             for images, labels in test_loader:
@@ -68,15 +69,18 @@ if __name__ == "__main__":
                 labels = labels.to(device)
 
                 outputs = model(images)
+                probs = torch.softmax(outputs, dim=1)
                 _, predicted = torch.max(outputs, 1)
 
+                all_probs.extend(probs.cpu().numpy())
                 all_preds.extend(predicted.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
 
         all_preds = np.array(all_preds)
         all_labels = np.array(all_labels)
+        all_probs = np.array(all_probs)
 
-        # ===== Confusion Matrix Only =====
+        # ===== Confusion Matrix =====
         cm = confusion_matrix(all_labels, all_preds)
         print("\nConfusion Matrix:")
         print(cm)
@@ -96,7 +100,23 @@ if __name__ == "__main__":
         plt.savefig(f"{save_prefix}_confusion_matrix.png")
         plt.close()
 
-        return cm
+        # ===== Average Precision (AP) per class =====
+        num_classes = all_probs.shape[1]
+        ap_scores = []
+
+        print("\nAverage Precision (AP) per class:")
+        for c in range(num_classes):
+            binary_labels = (all_labels == c).astype(int)
+            ap = average_precision_score(binary_labels, all_probs[:, c])
+            ap_scores.append(ap)
+            class_name = class_names[c] if class_names else f"Class {c}"
+            print(f"{class_name}: AP = {ap:.4f}")
+
+        mAP = np.mean(ap_scores)
+        print(f"\nMean Average Precision (mAP): {mAP:.4f}")
+
+        return cm, ap_scores, mAP
+
     
     class_names = test_loader.dataset.classes
 
