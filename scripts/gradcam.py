@@ -8,29 +8,62 @@ import torchvision.models as models
 import cv2
 import matplotlib.pyplot as plt
 import os
+from cnn_model import EfficientFERNet
 
-# used this as inspiration and used copilot's assistanc ewith the code
 # load the model
-model = models.resnet50(pretrained=False)
-# make sure the last layer we have matches the output
-model.fc = nn.Linear(model.fc.in_features, 6)
+def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth'):
+    model = None
+    transform = None
+    if model_type == 'efficient':
+        model = EfficientFERNet(width_mult=0.75)  # Update width_mult to match the checkpoint
+        # Adjust the classifier layer for the custom model
+        model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, 6)
 
-# load the weights
-state_dict = torch.load('resnet50_5step_.1.pth', map_location='cpu')
-model.load_state_dict(state_dict)
-model.eval()
+        # load the weights
+        state_dict = torch.load(model_path, map_location='cpu')
+        
+        # Extract the model weights from the state_dict
+        if 'model_state_dict' in state_dict:
+            state_dict = state_dict['model_state_dict']
 
-# transform the input images 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.Grayscale(num_output_channels=3),  # Convert grayscale to RGB
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
-])
+        # Load the extracted weights into the model
+        try:
+            model.load_state_dict(state_dict, strict=True)
+            print("Model weights loaded successfully.")
+        except RuntimeError as e:
+            print("Error loading state_dict:", e)
 
+        transform = transforms.Compose([
+            transforms.Grayscale(num_output_channels=1),
+            transforms.Resize((48, 48)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5])
+        ])
+    elif model_type == 'resnet':
+        # used this as inspiration and used copilot's assistanc ewith the code
+        # load the model
+        model = models.resnet50(pretrained=False)
+        # make sure the last layer we have matches the output
+        model.fc = nn.Linear(model.fc.in_features, 6)
+
+        # load the weights
+        state_dict = torch.load('resnet50_5step_.1.pth', map_location='cpu')
+        model.load_state_dict(state_dict)
+
+        # transform the input images 
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.Grayscale(num_output_channels=3),  # Convert grayscale to RGB
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ])
+
+    model.eval()
+    return model, transform
+    
 # class names for expressions
-class_names = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise']
+class_names = ['angry', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 class GradCAM:
     def __init__(self, model, target_layer):
@@ -86,7 +119,7 @@ class GradCAM:
         self.backward_handle.remove()
 
 
-def generate_gradcam(image_path, model, target_layer, target_class=None):
+def generate_gradcam(image_path, model, transform, target_layer, target_class=None):
     """Generate Grad-CAM heatmap for a given image."""
     # Load and preprocess the image
     image = Image.open(image_path).convert('RGB')
@@ -125,7 +158,7 @@ def overlay_gradcam(image, gradcam, alpha=0.4, colormap=cv2.COLORMAP_JET):
     return overlayed_image
 
 
-def process_class_images(test_dir, class_name, model, target_layer, output_dir, num_images=100):
+def process_class_images(test_dir, class_name, model, transform, target_layer, output_dir, num_images=100):
     """Process 10 images from a class, generate Grad-CAM, and save results."""
     
     # Create output directory for this class
@@ -148,7 +181,7 @@ def process_class_images(test_dir, class_name, model, target_layer, output_dir, 
         
         # Generate Grad-CAM
         gradcam, pred_class, original_image = generate_gradcam(
-            image_path, model, target_layer
+            image_path, model, transform, target_layer
         )
         
         # Create overlay
@@ -178,7 +211,7 @@ def process_class_images(test_dir, class_name, model, target_layer, output_dir, 
     return overlayed_images, predictions
 
 
-def analyze_all_classes(test_dir, model, target_layer, output_base_dir='gradcam_analysis', num_images=30):
+def analyze_all_classes(test_dir, model, transform, target_layer, output_base_dir='gradcam_analysis', num_images=30):
     """Process all classes and generate Grad-CAM visualizations."""
     
     # Create base output directory
@@ -189,7 +222,7 @@ def analyze_all_classes(test_dir, model, target_layer, output_base_dir='gradcam_
     
     for class_name in class_names:
         overlayed_images, predictions = process_class_images(
-            test_dir, class_name, model, target_layer, output_base_dir, num_images
+            test_dir, class_name, model, transform, target_layer, output_base_dir, num_images
         )
         
         all_results[class_name] = {
@@ -217,8 +250,15 @@ def analyze_all_classes(test_dir, model, target_layer, output_base_dir='gradcam_
 
 # Main execution
 if __name__ == "__main__":
-    # For ResNet50, use the last convolutional layer (layer4)
-    target_layer = model.layer4[-1]
+    model, transform = find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth')
+    
+    # set the target layer based on model type
+    if isinstance(model, EfficientFERNet):
+        target_layer = model.blocks[-1]
+    elif isinstance(model, models.ResNet):
+        target_layer = model.layer4[-1]
+    else:
+        raise ValueError("Unsupported model type for Grad-CAM.")
     
     # Base directory containing test images organized by class
     test_dir = '/Users/armina/Documents/GitHub/cv-facial-expression-detection/datasets/fer2013/test'
@@ -230,6 +270,7 @@ if __name__ == "__main__":
     results = analyze_all_classes(
         test_dir=test_dir,
         model=model,
+        transform=transform,
         target_layer=target_layer,
         output_base_dir=output_dir,
         num_images=30
