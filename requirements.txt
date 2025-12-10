@@ -4,3 +4,4 @@ numpy
 matplotlib
 transformers
 scikit-learn
+seaborn

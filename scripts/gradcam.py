@@ -9,11 +9,14 @@ import cv2
 import matplotlib.pyplot as plt
 import os
 from cnn_model import EfficientFERNet
+from transformers import ViTForImageClassification
 
 # load the model
 def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth'):
     model = None
     transform = None
+    # class names for expressions
+    class_names = ['angry', 'fear', 'happy', 'neutral', 'sad', 'surprise']
     if model_type == 'efficient':
         model = EfficientFERNet(width_mult=0.75)  # Update width_mult to match the checkpoint
         # Adjust the classifier layer for the custom model
@@ -47,7 +50,7 @@ def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch
         model.fc = nn.Linear(model.fc.in_features, 6)
 
         # load the weights
-        state_dict = torch.load('resnet50_5step_.1.pth', map_location='cpu')
+        state_dict = torch.load(model_path, map_location='cpu')
         model.load_state_dict(state_dict)
 
         # transform the input images 
@@ -58,12 +61,29 @@ def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
         ])
+    elif model_type == 'vit':
+        vit_checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+        # the transformer doesn't use the balanced dataset so we keep all 7 classes
+        class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
+        # we need eager attention implementation from the start because of hooks and since we need to store attentions
+        model = ViTForImageClassification.from_pretrained(
+            "google/vit-base-patch16-224-in21k",
+            num_labels=7,
+            hidden_dropout_prob=0.1,
+            attention_probs_dropout_prob=0.1,
+            attn_implementation='eager'
+        )
+        model.load_state_dict(vit_checkpoint['model_state_dict'])
+        model.config.output_attentions = True
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        ])
+        
     model.eval()
-    return model, transform
-    
-# class names for expressions
-class_names = ['angry', 'fear', 'happy', 'neutral', 'sad', 'surprise']
+    return model, transform, class_names
 
 class GradCAM:
     def __init__(self, model, target_layer):
@@ -77,17 +97,23 @@ class GradCAM:
         self.backward_handle = target_layer.register_full_backward_hook(self.backward_hook)
     
     def forward_hook(self, module, input, output):
-        self.activations = output.detach()
+        self.activations = output[0].detach()  # output is a tuple for ViT
     
     def backward_hook(self, module, grad_input, grad_output):
         self.gradients = grad_output[0].detach()
     
     def generate(self, input_tensor, target_class=None):
+        from transformers import ViTForImageClassification
+        
         # Forward pass
         output = self.model(input_tensor)
         
+        if hasattr(output, 'logits'):
+            output = output.logits
+        predicted_class = output.argmax(dim=1).item()
+        
         if target_class is None:
-            target_class = output.argmax(dim=1).item()
+            target_class = predicted_class
         
         # Backward pass
         self.model.zero_grad()
@@ -96,21 +122,35 @@ class GradCAM:
         output.backward(gradient=one_hot, retain_graph=True)
         
         # Get activations and gradients
-        activations = self.activations
-        gradients = self.gradients
+        activations = self.activations  # Shape: [batch, num_patches + 1, hidden_dim]
+        gradients = self.gradients      # Shape: [batch, num_patches + 1, hidden_dim]
         
-        # Global average pooling on gradients
-        weights = torch.mean(gradients, dim=(2, 3), keepdim=True)
-        
-        # Weighted combination of activation maps
-        gradcam = torch.sum(weights * activations, dim=1, keepdim=True)
-        
-        # Apply ReLU
-        gradcam = torch.relu(gradcam)
-        
-        # Normalize
-        gradcam = gradcam.squeeze().cpu().numpy()
-        gradcam = (gradcam - gradcam.min()) / (gradcam.max() - gradcam.min() + 1e-8)
+        # if it' a vit model we need to change things because of the lack of conv layers
+        if isinstance(self.model, ViTForImageClassification):
+            # remove the cls token
+            activations = activations[:, 1:, :] 
+            gradients = gradients[:, 1:, :]
+            
+            # find weights by averaging gradients across the hidden dimension
+            weights = torch.mean(gradients, dim=-1, keepdim=True)  # [batch, num_patches, 1]
+            
+            # weighted sum of activations
+            gradcam = torch.sum(weights * activations, dim=-1)  # Shape: [batch, num_patches]
+            gradcam = gradcam.squeeze(0).cpu().numpy()  # Shape: [num_patches]
+            
+            # reshape to 2D grid
+            num_patches = int(np.sqrt(len(gradcam)))
+            gradcam = gradcam.reshape(num_patches, num_patches)
+            
+            # use relu to focus on positive influences and normalize
+            gradcam = np.maximum(gradcam, 0)
+            gradcam = (gradcam - gradcam.min()) / (gradcam.max() - gradcam.min() + 1e-8)
+        else:
+            weights = torch.mean(gradients, dim=(2, 3), keepdim=True)
+            gradcam = torch.sum(weights * activations, dim=1, keepdim=True)
+            gradcam = torch.relu(gradcam)
+            gradcam = gradcam.squeeze().cpu().numpy()
+            gradcam = (gradcam - gradcam.min()) / (gradcam.max() - gradcam.min() + 1e-8)
         
         return gradcam, target_class
     
@@ -118,26 +158,77 @@ class GradCAM:
         self.forward_handle.remove()
         self.backward_handle.remove()
 
+# similar version of gradcam but for vit
+class AttentionRollout:
+    def __init__(self, model, head_fusion='mean', discard_ratio=0.9):
+        self.model = model
+        self.head_fusion = head_fusion
+        self.discard_ratio = discard_ratio
+    
+    def generate(self, input_tensor):
+        # enable the attention outputs
+        with torch.no_grad():
+            outputs = self.model(input_tensor, output_attentions=True)
+        
+        # get all attention maps
+        attentions = outputs.attentions  # tuple of [batch, num_heads, seq_len, seq_len]
+        attentions = torch.stack(attentions)  # [num_layers, batch, num_heads, seq_len, seq_len]
+        
+        # take average of heads
+        if self.head_fusion == 'mean':
+            attentions = attentions.mean(dim=2)  # [num_layers, batch, seq_len, seq_len]
+        elif self.head_fusion == 'max':
+            attentions = attentions.max(dim=2)[0]
+        
+        # remove batch
+        attentions = attentions.squeeze(1)  # [num_layers, seq_len, seq_len]
+        # find the residual connections
+        num_tokens = attentions.shape[-1]
+        eye = torch.eye(num_tokens).to(attentions.device)
+        attentions = attentions + eye
+        attentions = attentions / attentions.sum(dim=-1, keepdim=True)
+        
+        joint_attentions = attentions[0]
+        for i in range(1, len(attentions)):
+            joint_attentions = torch.matmul(attentions[i], joint_attentions)
+        
+        # get CLS token attention (this is the first token)
+        cls_attention = joint_attentions[0, 1:] 
+        
+        num_patches = int(np.sqrt(len(cls_attention)))
+        attention_map = cls_attention.reshape(num_patches, num_patches).cpu().numpy()
+        # normalize the attention map
+        attention_map = (attention_map - attention_map.min()) / (attention_map.max() - attention_map.min() + 1e-8)
+        pred_class = outputs.logits.argmax(dim=1).item()
+        
+        return {
+            'attention_map': attention_map,
+            'pred_class': pred_class
+        }
 
-def generate_gradcam(image_path, model, transform, target_layer, target_class=None):
-    """Generate Grad-CAM heatmap for a given image."""
+
+def generate_gradcam(image_path, model, transform, target_layer, target_class=None, use_attention_rollout=False):
+    """Generate Grad-CAM or Attention Rollout heatmap for a given image."""    
     # Load and preprocess the image
     image = Image.open(image_path).convert('RGB')
     input_tensor = transform(image).unsqueeze(0)
     
-    # Initialize Grad-CAM
-    gradcam_generator = GradCAM(model, target_layer)
-    
-    # Generate Grad-CAM
-    gradcam, pred_class = gradcam_generator.generate(input_tensor, target_class)
+    if isinstance(model, ViTForImageClassification) and use_attention_rollout:
+        # use attention rollout for vit since we don't have convolutional layers
+        rollout = AttentionRollout(model)
+        outputs = rollout.generate(input_tensor)
+        heatmap = outputs['attention_map']
+        pred_class = outputs['pred_class']
+    else:
+        # Initialize Grad-CAM
+        gradcam_generator = GradCAM(model, target_layer)
+        heatmap, pred_class = gradcam_generator.generate(input_tensor, target_class)
+        gradcam_generator.remove_hooks()
     
     # Resize to original image size
-    gradcam = cv2.resize(gradcam, (image.width, image.height))
+    heatmap = cv2.resize(heatmap, (image.width, image.height))
     
-    # Clean up hooks
-    gradcam_generator.remove_hooks()
-    
-    return gradcam, pred_class, image
+    return heatmap, pred_class, image
 
 
 def overlay_gradcam(image, gradcam, alpha=0.4, colormap=cv2.COLORMAP_JET):
@@ -158,8 +249,8 @@ def overlay_gradcam(image, gradcam, alpha=0.4, colormap=cv2.COLORMAP_JET):
     return overlayed_image
 
 
-def process_class_images(test_dir, class_name, model, transform, target_layer, output_dir, num_images=100):
-    """Process 10 images from a class, generate Grad-CAM, and save results."""
+def process_class_images(test_dir, class_name, model, transform, target_layer, output_dir, num_images=30):
+    """process 30 images from a class, generate Grad-CAM, and save results."""
     
     # Create output directory for this class
     class_output_dir = os.path.join(output_dir, f'gradcam_analysis_{class_name}')
@@ -169,32 +260,28 @@ def process_class_images(test_dir, class_name, model, transform, target_layer, o
     class_dir = os.path.join(test_dir, class_name)
     image_files = [f for f in os.listdir(class_dir) if f.endswith(('.jpg', '.png', '.jpeg'))]
     image_files = image_files[:num_images]  
+    print(image_files)
     
     overlayed_images = []
     predictions = []
     
-    print(f"\nProcessing class: {class_name}")
-    print("-" * 50)
-    
-    for idx, image_file in enumerate(image_files):
+    for _, image_file in enumerate(image_files):
         image_path = os.path.join(class_dir, image_file)
         
-        # Generate Grad-CAM
+        # generate Grad-CAM
         gradcam, pred_class, original_image = generate_gradcam(
-            image_path, model, transform, target_layer
+            image_path, model, transform, target_layer, use_attention_rollout=isinstance(model, ViTForImageClassification)
         )
-        
-        # Create overlay
         overlayed = overlay_gradcam(original_image, gradcam)
         overlayed_images.append(overlayed)
         predictions.append(pred_class)
     
-    # Create a grid visualization
+    # make a grid visualization
     fig, axes = plt.subplots(5, 6, figsize=(20, 8))
     fig.suptitle(f'Grad-CAM Analysis - True Class: {class_name.upper()}', 
                  fontsize=16, fontweight='bold')
     
-    for idx, (ax, img, pred) in enumerate(zip(axes.flat, overlayed_images, predictions)):
+    for _, (ax, img, pred) in enumerate(zip(axes.flat, overlayed_images, predictions)):
         ax.imshow(img)
         ax.set_title(f'Pred: {class_names[pred]}', fontsize=10)
         ax.axis('off')
@@ -211,7 +298,7 @@ def process_class_images(test_dir, class_name, model, transform, target_layer, o
     return overlayed_images, predictions
 
 
-def analyze_all_classes(test_dir, model, transform, target_layer, output_base_dir='gradcam_analysis', num_images=30):
+def analyze_all_classes(test_dir, model, transform, target_layer, class_names, output_base_dir='gradcam_analysis', num_images=30):
     """Process all classes and generate Grad-CAM visualizations."""
     
     # Create base output directory
@@ -230,40 +317,24 @@ def analyze_all_classes(test_dir, model, transform, target_layer, output_base_di
             'predictions': predictions
         }
     
-    # Generate summary statistics
-    print("\n" + "=" * 50)
-    print("SUMMARY")
-    print("=" * 50)
-    
-    for class_name in class_names:
-        preds = all_results[class_name]['predictions']
-        true_class_idx = class_names.index(class_name)
-        correct = sum(1 for p in preds if p == true_class_idx)
-        accuracy = (correct / len(preds)) * 100
-        
-        print(f"{class_name.capitalize():10s}: {correct}/{len(preds)} correct ({accuracy:.1f}%)")
-    
-    print("\nAll Grad-CAM analyses saved to:", output_base_dir)
-    
     return all_results
 
 
-# Main execution
 if __name__ == "__main__":
-    model, transform = find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth')
-    
+    #model, transform = find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth')
+    model, transform, class_names = find_model_and_tranform(model_type='vit', model_path='checkpoints/vit_fer_best.pth')
     # set the target layer based on model type
     if isinstance(model, EfficientFERNet):
         target_layer = model.blocks[-1]
     elif isinstance(model, models.ResNet):
         target_layer = model.layer4[-1]
+    elif isinstance(model, ViTForImageClassification):
+        target_layer = model.vit.encoder.layer[-1]  # Use the last encoder layer for Grad-CAM
     else:
         raise ValueError("Unsupported model type for Grad-CAM.")
     
     # Base directory containing test images organized by class
-    test_dir = '/Users/armina/Documents/GitHub/cv-facial-expression-detection/datasets/fer2013/test'
-    
-    # Output directory for Grad-CAM results
+    test_dir = 'datasets/fer2013/test'
     output_dir = 'gradcam_analysis'
     
     # Process all classes
@@ -272,8 +343,7 @@ if __name__ == "__main__":
         model=model,
         transform=transform,
         target_layer=target_layer,
+        class_names=class_names,
         output_base_dir=output_dir,
         num_images=30
     )
-    
-    print("\nDone! Check the 'gradcam_analysis' folder for results.")
