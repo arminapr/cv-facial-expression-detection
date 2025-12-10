@@ -5,6 +5,7 @@ from scripts.custom_vgg import CustomVGG
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, average_precision_score
 from datetime import datetime
+import numpy as np
 
 # hyperparameters
 batch_size = 64
