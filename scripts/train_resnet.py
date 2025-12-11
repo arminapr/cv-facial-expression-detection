@@ -1,3 +1,10 @@
+"""
+train_resnet.py
+
+Implements training, validation, and evaluation for resnet models.
+"""
+
+
 import torch
 import torch.nn as nn
 import torch.optim as optim

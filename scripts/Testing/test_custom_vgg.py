@@ -1,3 +1,10 @@
+"""
+test_custom_vgg.py
+
+This script is used to train and evaluate the CustomVGG model
+
+"""
+
 import torch
 from torch import nn, optim
 from scripts.data_loader import get_dataloaders

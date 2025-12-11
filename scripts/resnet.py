@@ -1,10 +1,16 @@
+"""
+resnet.py
+
+returns the specified resnet model
+"""
+
 import torch
 import torch.nn as nn
 import torchvision.models as models
 
 def get_resnet(num_classes=7, pretrained=True, freeze_layers=False):
     """"
-    Returns a ResNet-18 model to work for FER2013
+    Returns a ResNet model to work for FER2013
 
     This is similar to PA3 2.8, training using ResNet weights
     """

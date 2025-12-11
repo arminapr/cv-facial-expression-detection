@@ -1,3 +1,9 @@
+"""
+test_data_loader.py
+
+This script is used to test our data loader and ensure it is loading the proper data.
+
+"""
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

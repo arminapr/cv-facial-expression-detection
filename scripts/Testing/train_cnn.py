@@ -1,3 +1,10 @@
+"""
+train_cnn.py
+
+This script is used to train and evaluate our custom CNN model.
+It also saves certain metrics to be used for performance analysis.
+
+"""
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

@@ -1,4 +1,10 @@
-# efficient_fer_model.py
+"""
+cnn_model.py
+
+This script builds our custom CNN architecture used for facial emotion recognition.
+
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

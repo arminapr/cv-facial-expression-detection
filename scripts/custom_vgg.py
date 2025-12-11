@@ -1,3 +1,9 @@
+"""
+custom_vgg.py
+
+This file implements a VGG-inspired CNN from scratch for classifying facial emotions.
+
+"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

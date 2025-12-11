@@ -1,3 +1,9 @@
+"""
+data_collection.py
+
+Downloads teh FER2013 dataset from Kaggle and saves it in our local directory
+"""
+
 import kagglehub
 import os
 import shutil

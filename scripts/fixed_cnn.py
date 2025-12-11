@@ -1,3 +1,10 @@
+"""
+fixed_cnn.py
+
+Provides a full training pipeline for our EfficientFER CNN and final model saving.
+
+"""
+
 # train_pipeline.py
 import os
 import pickle

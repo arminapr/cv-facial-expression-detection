@@ -1,3 +1,9 @@
+"""
+test_resnet_model.py
+
+This script is used to test a fake batch of images on the resnet model to ensure it processess correctly.
+
+"""
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

@@ -1,3 +1,11 @@
+"""
+plot.py
+
+Loads saved training metrics and uses to generates plots for training/validation loss and accuracy.
+
+"""
+
+
 import pickle
 import matplotlib.pyplot as plt
 import os

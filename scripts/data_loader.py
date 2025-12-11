@@ -1,3 +1,9 @@
+"""
+data_loader.py
+
+This file handles data preprocessing, class balancing, and provides dataloaders for training and evaluation. 
+
+"""
 import os
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split, Subset
@@ -29,7 +35,6 @@ def balance_dataset(dataset):
     return Subset(dataset, balanced_indices)
 
 # using this to remove any data labels we won't use
-# help 
 def remove_class(dataset, classname):
     orig_classes = list(dataset.classes)
     # new classes and mapping without the removed class

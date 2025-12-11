@@ -1,3 +1,11 @@
+"""
+vit_pipeline.py
+
+Trains, evaluates, and analyzes a Vision Transformer on the FER2013 dataset.
+Generates metrics such as accuracy, mAP, and confusion matrix
+"""
+
+
 import torch
 import torch.nn as nn
 import torch.optim as optim

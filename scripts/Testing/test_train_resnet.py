@@ -1,3 +1,9 @@
+"""
+test_train_resnet.py
+
+This script is used to train and evaluate resnet models. It also saves metrics to be used for analysis.
+
+"""
 # GPT used for plotting/graphs
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

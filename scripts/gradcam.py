@@ -1,3 +1,10 @@
+"""
+gradcam.py
+
+Generates Grad-CAM visualizations for a given model
+
+"""
+
 # Import necessary packages and libraries
 import torch
 import numpy as np
