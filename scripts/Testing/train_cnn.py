@@ -70,7 +70,7 @@ if __name__ == "__main__":
     model = model.to(device)
     
     # === Training hyperparameters ===
-    num_epochs = 50 
+    num_epochs = 20 
     learning_rate = 0.001
     weight_decay = 0.0001
     steps_per_epoch = len(train_loader)

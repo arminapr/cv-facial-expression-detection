@@ -31,24 +31,34 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # train
 training_loss = []
+training_accuracy = []
 validation_loss = []
 validation_accuracy = []
 
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
+    running_correct = 0
+    running_total = 0
+
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
-        
+
         optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
+
         running_loss += loss.item() * images.size(0)
-    
+        _, preds = torch.max(outputs, 1)
+        running_correct += (preds == labels).sum().item()
+        running_total += labels.size(0)
+
     epoch_loss = running_loss / len(train_loader.dataset)
+    epoch_acc = running_correct / running_total
     training_loss.append(epoch_loss)
+    training_accuracy.append(epoch_acc)
 
     # Validation loop
     model.eval()
@@ -72,8 +82,9 @@ for epoch in range(num_epochs):
     validation_loss.append(epoch_val_loss)
     validation_accuracy.append(epoch_val_acc)
 
-    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}, Val Loss: {epoch_val_loss:.4f}, Val Acc: {epoch_val_acc:.4f}")
+    print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {epoch_loss:.4f}, Train Acc: {epoch_acc:.4f}, Val Loss: {epoch_val_loss:.4f}, Val Acc: {epoch_val_acc:.4f}")
 
+print(f"Final Training Accuracy: {training_accuracy[-1]:.4f}")
 print(f"Final Validation Loss: {validation_loss[-1]:.4f}, Final Validation Accuracy: {validation_accuracy[-1]:.4f}")
 
 # test set
