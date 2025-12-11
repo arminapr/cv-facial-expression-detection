@@ -51,7 +51,9 @@ def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch
 
         # load the weights
         state_dict = torch.load(model_path, map_location='cpu')
-        model.load_state_dict(state_dict)
+        # Filter out mismatched layers
+        filtered_state_dict = {k: v for k, v in state_dict.items() if k in model.state_dict() and model.state_dict()[k].shape == v.shape}
+        model.load_state_dict(filtered_state_dict, strict=False)
 
         # transform the input images 
         transform = transforms.Compose([
@@ -321,8 +323,9 @@ def analyze_all_classes(test_dir, model, transform, target_layer, class_names, o
 
 
 if __name__ == "__main__":
-    #model, transform = find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth')
-    model, transform, class_names = find_model_and_tranform(model_type='vit', model_path='checkpoints/vit_fer_best.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet18_fer2013.pth')
+    model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet50_5step_.1.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='vit', model_path='checkpoints/vit_fer_best.pth')
     # set the target layer based on model type
     if isinstance(model, EfficientFERNet):
         target_layer = model.blocks[-1]
