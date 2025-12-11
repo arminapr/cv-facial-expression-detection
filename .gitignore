@@ -208,3 +208,5 @@ __marimo__/
 
 # macOS system files
 .DS_Store
+
+checkpoints/vit_fer_best.pth
