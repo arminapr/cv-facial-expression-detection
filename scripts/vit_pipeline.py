@@ -202,15 +202,11 @@ def main():
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
     
-    print("Preparing datasets...")
     # Load full datasets
     train_dataset_full = datasets.ImageFolder(train_dir, transform=train_transform)
     val_dataset_full = datasets.ImageFolder(test_dir, transform=val_transform)
     
-    print("\nProcessing training dataset:")
     train_dataset = filter_and_balance_dataset(train_dataset_full, exclude_class_idx=1)
-    
-    print("\nProcessing validation dataset:")
     val_dataset = filter_and_balance_dataset(val_dataset_full, exclude_class_idx=1)
     
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, 
@@ -226,6 +222,8 @@ def main():
         attention_probs_dropout_prob=0.1
     )
     model.to(device)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Total parameters: {total_params}")
     
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -235,9 +233,7 @@ def main():
     best_val_map = 0.0
     patience = 3
     patience_counter = 0
-    
-    print("\nStarting training...")
-    
+        
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
@@ -282,6 +278,7 @@ def main():
         for i, (name, ap) in enumerate(zip(class_names, val_metrics['class_aps'])):
             print(f"{name}: {ap*100:.1f}%", end="  " if i < len(class_names)-1 else "\n")
         
+        # saves the best model based on validation mAP
         if history['val_map'][epoch] > best_val_map:
             best_val_map = history['val_map'][epoch]
             best_val_acc = history['val_acc'][epoch]
@@ -295,18 +292,14 @@ def main():
                 'best_val_map': best_val_map,
                 'history': history
             }, "./checkpoints/vit_fer_best.pth")
-            print(f"  → Saved new best model with val_mAP: {best_val_map:.2f}%, val_acc: {best_val_acc:.2f}%")
         else:
             patience_counter += 1
             if patience_counter >= patience:
                 print(f"Early stopping triggered after {epoch+1} epochs")
                 break
     
-    print("\n" + "="*50)
-    print("Training Complete!")
-    print(f"Best Validation Accuracy: {best_val_acc:.2f}%")
-    print(f"Best Validation mAP: {best_val_map:.2f}%")
-    print("="*50)
+    # print best validation results
+    print(f"\nBest Validation mAP: {best_val_map:.2f}%, Best Validation Acc: {best_val_acc:.2f}%")
     
     os.makedirs("./checkpoints", exist_ok=True)
     np.savez("./checkpoints/training_history.npz", 
@@ -324,4 +317,3 @@ if __name__ == "__main__":
     os.makedirs("training_metrics", exist_ok=True)
     with open(os.path.join("training_metrics", f"metrics_VIT.pkl"), "wb") as f:
         pickle.dump(history, f)
-    print("Saved metrics.")
