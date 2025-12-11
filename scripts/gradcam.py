@@ -338,7 +338,7 @@ def process_class_images(test_dir, class_name, model, transform, target_layer, o
     return overlayed_images, predictions
 
 
-def analyze_all_classes(test_dir, model, transform, target_layer, class_names, output_base_dir='gradcam_analysis', num_images=30):
+def analyze_all_classes(test_dir, model, transform, target_layer, class_names, output_base_dir='gradcam/gradcam_analysis', num_images=30):
     """Process all classes and generate Grad-CAM visualizations."""
     
     # Create base output directory
@@ -361,11 +361,11 @@ def analyze_all_classes(test_dir, model, transform, target_layer, class_names, o
 
 
 if __name__ == "__main__":
-    # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet18_fer2013.pth')
-    # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet50_5step_.1.pth')
-    # model, transform, class_names = find_model_and_tranform(model_type='custom_vgg', model_path='custom_vgg_model.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='checkpoints/resnet18_fer2013.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='checkpoints/resnet50_5step_.1.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='custom_vgg', model_path='checkpoints/custom_vgg_model.pth')
     # model, transform, class_names = find_model_and_tranform(model_type='vit', model_path='checkpoints/vit_fer_best.pth')
-    model, transform, class_names = find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth')
+    model, transform, class_names = find_model_and_tranform(model_type='efficient', model_path='checkpoints/our_cnn_50_epoch.pth')
     # set the target layer based on model type
     if isinstance(model, EfficientFERNet):
         for layer in reversed(model.blocks):
@@ -386,7 +386,7 @@ if __name__ == "__main__":
     
     # Base directory containing test images organized by class
     test_dir = 'datasets/fer2013/test'
-    output_dir = 'gradcam_analysis'
+    output_dir = 'gradcam/gradcam_analysis'
     
     # Process all classes
     results = analyze_all_classes(

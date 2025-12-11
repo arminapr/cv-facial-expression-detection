@@ -210,3 +210,4 @@ __marimo__/
 .DS_Store
 
 checkpoints/vit_fer_best.pth
+checkpoints/custom_vgg_model.pth
