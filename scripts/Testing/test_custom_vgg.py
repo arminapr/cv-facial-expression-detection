@@ -30,6 +30,10 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # train
+training_loss = []
+validation_loss = []
+validation_accuracy = []
+
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -44,8 +48,34 @@ for epoch in range(num_epochs):
         running_loss += loss.item() * images.size(0)
     
     epoch_loss = running_loss / len(train_loader.dataset)
-    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
-    
+    training_loss.append(epoch_loss)
+
+    # Validation loop
+    model.eval()
+    val_running_loss = 0.0
+    val_correct = 0
+    val_total = 0
+
+    with torch.no_grad():
+        for val_images, val_labels in val_loader:
+            val_images, val_labels = val_images.to(device), val_labels.to(device)
+            val_outputs = model(val_images)
+            val_loss = criterion(val_outputs, val_labels)
+
+            val_running_loss += val_loss.item() * val_images.size(0)
+            _, val_preds = torch.max(val_outputs, 1)
+            val_correct += (val_preds == val_labels).sum().item()
+            val_total += val_labels.size(0)
+
+    epoch_val_loss = val_running_loss / len(val_loader.dataset)
+    epoch_val_acc = val_correct / val_total
+    validation_loss.append(epoch_val_loss)
+    validation_accuracy.append(epoch_val_acc)
+
+    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}, Val Loss: {epoch_val_loss:.4f}, Val Acc: {epoch_val_acc:.4f}")
+
+print(f"Final Validation Loss: {validation_loss[-1]:.4f}, Final Validation Accuracy: {validation_accuracy[-1]:.4f}")
+
 # test set
 model.eval()
 correct = 0

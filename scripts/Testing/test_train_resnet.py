@@ -123,14 +123,14 @@ if __name__ == "__main__":
     evaluate_full_metrics(model, test_loader, device=device, class_names=class_names, save_prefix=f"results_{num_epochs}_{learning_rate}")
 
     # === Save trained model ===
-    torch.save(model.state_dict(), f"resnet34_fer2013_{num_epochs}_{learning_rate}.pth")
-    print("Model saved as resnet34_fer2013.pth")
+    torch.save(model.state_dict(), f"resnet18_fer2013_{num_epochs}_{learning_rate}.pth")
+    print("Model saved as resnet18_fer2013.pth")
 
     # save the training and validation losses and accuracies
     metrics_dir = './training_metrics'
     os.makedirs(metrics_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_filename = f'resnet34_{num_epochs}_{learning_rate}.pkl'
+    base_filename = f'resnet18_{num_epochs}_{learning_rate}.pkl'
     
     metrics_save_path = os.path.join(metrics_dir, base_filename)
     with open(metrics_save_path, 'wb') as f:

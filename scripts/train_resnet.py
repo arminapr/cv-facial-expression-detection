@@ -87,14 +87,32 @@ def train_model(model, train_data_loader, val_data_loader, loss_fn, optimizer, l
         training_loss.append(epoch_avg_loss)
         training_acc.append(epoch_avg_acc)
 
-        # validation metrics (now returns loss and acc)
-        val_loss_epoch, val_acc_epoch = test_model(model, val_data_loader, loss_fn=loss_fn, device=device)
-        val_loss.append(val_loss_epoch)
-        val_acc.append(val_acc_epoch)
+        # Validation loop
+        model.eval()
+        val_running_loss = 0.0
+        val_correct = 0
+        val_total = 0
 
-        print(f"[{epoch_i + 1}/{num_epochs}] train loss: {epoch_avg_loss:.4f} train acc: {epoch_avg_acc:.2f}% | val loss: {val_loss_epoch:.4f} val acc: {val_acc_epoch:.2f}%")
+        with torch.no_grad():
+            for val_images, val_labels in val_data_loader:
+                val_images, val_labels = val_images.to(device), val_labels.to(device)
+                val_outputs = model(val_images)
+                val_loss = loss_fn(val_outputs, val_labels)
+
+                val_running_loss += val_loss.item() * val_images.size(0)
+                _, val_preds = torch.max(val_outputs, 1)
+                val_correct += (val_preds == val_labels).sum().item()
+                val_total += val_labels.size(0)
+
+        epoch_val_loss = val_running_loss / len(val_data_loader.dataset)
+        epoch_val_acc = val_correct / val_total
+        val_loss.append(epoch_val_loss)
+        val_acc.append(epoch_val_acc)
+
+        print(f"Epoch [{epoch_i+1}/{num_epochs}], Train Loss: {epoch_avg_loss:.4f}, Val Loss: {epoch_val_loss:.4f}, Val Acc: {epoch_val_acc:.4f}")
 
     print("Training complete!")
+    print(f"Final Validation Loss: {val_loss[-1]:.4f}, Final Validation Accuracy: {val_acc[-1]:.4f}")
     metrics = {
         'train_loss': training_loss,
         'train_acc': training_acc,
