@@ -1,7 +1,7 @@
 # cv-facial-expression-detection
 Facial Expression Detection using Deep Learning
 
-# [Demo]{https://northeastern-my.sharepoint.com/:f:/r/personal/parvareshrizi_a_northeastern_edu/Documents/CV-FER-AP%20and%20EA?csf=1&web=1&e=BQkTZX}
+# [Demo](https://northeastern-my.sharepoint.com/:f:/r/personal/parvareshrizi_a_northeastern_edu/Documents/CV-FER-AP%20and%20EA?csf=1&web=1&e=BQkTZX)
 
 
 ## Overview
