@@ -1,6 +1,9 @@
 # cv-facial-expression-detection
 Facial Expression Detection using Deep Learning
 
+# [Demo](https://northeastern-my.sharepoint.com/:f:/r/personal/parvareshrizi_a_northeastern_edu/Documents/CV-FER-AP%20and%20EA?csf=1&web=1&e=BQkTZX)
+
+
 ## Overview
 This repository contains scripts and resources for training, evaluating, and visualizing various deep learning models for facial expression detection. The models are trained on the FER2013 dataset and include architectures such as ResNet, VGG, and Vision Transformers (ViT).
 
@@ -72,6 +75,3 @@ datasets/
 
 ## Pre-trained Models
 Pre-trained model weights are available in the `checkpoints/` directory. Use these weights for evaluation or fine-tuning. More weights that are larger than git allows can be found here: https://northeastern-my.sharepoint.com/:f:/r/personal/parvareshrizi_a_northeastern_edu/Documents/CV-FER-AP%20and%20EA?csf=1&web=1&e=BQkTZX
-
-## License
-This project is licensed under the MIT License.
