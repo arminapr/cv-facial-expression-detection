@@ -8,8 +8,10 @@ import torchvision.models as models
 import cv2
 import matplotlib.pyplot as plt
 import os
-from cnn_model import EfficientFERNet
+from cnn_model import EfficientFERNet, SEBlock
 from transformers import ViTForImageClassification
+from custom_vgg import CustomVGG
+
 
 # load the model
 def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth'):
@@ -83,6 +85,21 @@ def find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
         ])
+    elif model_type == 'custom_vgg':
+        model = CustomVGG(num_classes=6)
+
+        state_dict = torch.load(model_path, map_location='cpu')
+        if 'model_state_dict' in state_dict:
+            state_dict = state_dict['model_state_dict']
+        model.load_state_dict(state_dict)
+
+        transform = transforms.Compose([
+            transforms.Resize((48, 48)),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5])
+        ])
+
         
     model.eval()
     return model, transform, class_names
@@ -99,7 +116,10 @@ class GradCAM:
         self.backward_handle = target_layer.register_full_backward_hook(self.backward_hook)
     
     def forward_hook(self, module, input, output):
-        self.activations = output[0].detach()  # output is a tuple for ViT
+        if isinstance(output, tuple):
+            self.activations = output[0].detach().clone() # output is a tuple for ViT
+        else:
+            self.activations = output.detach().clone()
     
     def backward_hook(self, module, grad_input, grad_output):
         self.gradients = grad_output[0].detach()
@@ -150,7 +170,7 @@ class GradCAM:
         else:
             weights = torch.mean(gradients, dim=(2, 3), keepdim=True)
             gradcam = torch.sum(weights * activations, dim=1, keepdim=True)
-            gradcam = torch.relu(gradcam)
+            gradcam = torch.relu(gradcam).clone()
             gradcam = gradcam.squeeze().cpu().numpy()
             gradcam = (gradcam - gradcam.min()) / (gradcam.max() - gradcam.min() + 1e-8)
         
@@ -212,7 +232,10 @@ class AttentionRollout:
 def generate_gradcam(image_path, model, transform, target_layer, target_class=None, use_attention_rollout=False):
     """Generate Grad-CAM or Attention Rollout heatmap for a given image."""    
     # Load and preprocess the image
-    image = Image.open(image_path).convert('RGB')
+    if 'CustomVGG' in str(type(model)):
+        image = Image.open(image_path).convert('L') # grayscale
+    else:
+        image = Image.open(image_path).convert('RGB')
     input_tensor = transform(image).unsqueeze(0)
     
     if isinstance(model, ViTForImageClassification) and use_attention_rollout:
@@ -234,21 +257,29 @@ def generate_gradcam(image_path, model, transform, target_layer, target_class=No
 
 
 def overlay_gradcam(image, gradcam, alpha=0.4, colormap=cv2.COLORMAP_JET):
-    """Overlay Grad-CAM heatmap on original image."""
-    # Convert PIL image to numpy if needed
+    # Convert PIL to numpy
     if isinstance(image, Image.Image):
         image_np = np.array(image)
     else:
         image_np = image
-    
+
+    # If grayscale, convert to RGB
+    if image_np.ndim == 2:  # shape (H, W)
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
+
     # Create heatmap
     heatmap = cv2.applyColorMap(np.uint8(255 * gradcam), colormap)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-    
-    # Overlay heatmap on image
+
+    # Ensure same size
+    if heatmap.shape != image_np.shape:
+        heatmap = cv2.resize(heatmap, (image_np.shape[1], image_np.shape[0]))
+
+    # Overlay
     overlayed_image = cv2.addWeighted(image_np, 1 - alpha, heatmap, alpha, 0)
-    
+
     return overlayed_image
+
 
 
 def process_class_images(test_dir, class_name, model, transform, target_layer, output_dir, num_images=30):
@@ -324,15 +355,25 @@ def analyze_all_classes(test_dir, model, transform, target_layer, class_names, o
 
 if __name__ == "__main__":
     # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet18_fer2013.pth')
-    model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet50_5step_.1.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='resnet', model_path='resnet50_5step_.1.pth')
+    # model, transform, class_names = find_model_and_tranform(model_type='custom_vgg', model_path='custom_vgg_model.pth')
     # model, transform, class_names = find_model_and_tranform(model_type='vit', model_path='checkpoints/vit_fer_best.pth')
+    model, transform, class_names = find_model_and_tranform(model_type='efficient', model_path='our_cnn_50_epoch.pth')
     # set the target layer based on model type
     if isinstance(model, EfficientFERNet):
-        target_layer = model.blocks[-1]
+        for layer in reversed(model.blocks):
+            if isinstance(layer, SEBlock):
+                target_layer = layer
+                break
     elif isinstance(model, models.ResNet):
         target_layer = model.layer4[-1]
     elif isinstance(model, ViTForImageClassification):
-        target_layer = model.vit.encoder.layer[-1]  # Use the last encoder layer for Grad-CAM
+        target_layer = model.vit.encoder.layer[-1]
+    elif 'CustomVGG' in str(type(model)):
+        for layer in reversed(model.features):
+            if isinstance(layer, nn.Conv2d):
+                target_layer = layer
+                break
     else:
         raise ValueError("Unsupported model type for Grad-CAM.")
     
