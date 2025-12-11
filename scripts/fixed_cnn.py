@@ -103,7 +103,7 @@ def train_model(
       - uses autocast + GradScaler if available
       - aggregates loss properly (weighted by batch size)
       - steps lr_scheduler per epoch (or per batch if using warm restarts and user desires)
-      - saves best validation checkpoint
+      - saves the final model
     """
     os.makedirs(save_dir, exist_ok=True)
     model = model.to(device)
@@ -169,19 +169,9 @@ def train_model(
 
         print(f"=== Epoch {epoch} Summary: train_loss: {epoch_train_loss:.4f} train_acc: {epoch_train_acc:.2f}% | val_loss: {val_loss:.4f} val_acc: {val_acc:.2f}%")
 
-        # Save best model by val_acc
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            ckpt = {
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'val_loss': val_loss,
-                'val_acc': val_acc,
-            }
-            ckpt_path = os.path.join(save_dir, f"best_model_epoch{epoch}_acc{val_acc:.2f}.pth")
-            torch.save(ckpt, ckpt_path)
-            print(f"Saved new best model to {ckpt_path}")
+    # Save last model
+    torch.save(model.state_dict(), os.path.join(save_dir, f"efficientFER_epoch{num_epochs}.pth"))
+    print(f"Saved final model as efficientFER_epoch{num_epochs}.pth")
 
     print("Training complete.")
     return model, metrics
