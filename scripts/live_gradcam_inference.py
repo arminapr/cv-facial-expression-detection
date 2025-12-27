@@ -71,7 +71,6 @@ while True:
             pred_class = outputs['pred_class']
         else:
             heatmap, pred_class = gradcam_generator.generate(input_tensor, target_class=None)
-            gradcam_generator.remove_hooks()
 
         # make the heatmap the same size as the face and put it over the face
         heatmap_resized = cv2.resize(heatmap, (w, h))
@@ -90,6 +89,9 @@ while True:
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
+
+if MODEL_TYPE != 'vit':
+    gradcam_generator.remove_hooks()
 # release resources 
 cap.release()
 cv2.destroyAllWindows()
